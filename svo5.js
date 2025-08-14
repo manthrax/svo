@@ -38,7 +38,7 @@ export function makePaletteTexture(bytes) {
 
 // ----- SVO builder (CPU) -----
 // voxels: Uint8Array length size^3, 0 empty, 1..255 palette index
-export function buildSVOFromDense(voxels, size) {
+export function buildSVOFromDense(voxels, size, maxTexWidth = 4096) {
     if (!isPow2(size))
         throw new Error('size must be power of two');
     const nodes = [];
@@ -93,17 +93,17 @@ export function buildSVOFromDense(voxels, size) {
         nodes.push(c);
         rootId = id;
     }
-    // pack nodes (two texels per node)
+    // pack nodes (two texels per node) into 2D texture
     const nodeCount = nodes.length;
-    const width = nodeCount * 2
-      , height = 1;
+    const texels = nodeCount * 2;
+    const width = Math.min(texels, maxTexWidth);
+    const height = Math.ceil(texels / width);
     const data = new Float32Array(width * height * 4);
     for (let i = 0; i < nodeCount; i++) {
         const c = nodes[i];
-        const o0 = (i * 2 + 0) * 4
-          , o1 = (i * 2 + 1) * 4;
-        data.set([c[0], c[1], c[2], c[3]], o0);
-        data.set([c[4], c[5], c[6], c[7]], o1);
+        const base = i * 8;
+        data.set([c[0], c[1], c[2], c[3]], base);
+        data.set([c[4], c[5], c[6], c[7]], base + 4);
     }
     return {
         data,
@@ -303,7 +303,7 @@ uvec4 fetchU32(uint idx){
 
 // ----- Upload helpers (AFTER material exists) -----
 export function uploadSVO({data, width, height, rootId, svoSize}) {
-    if (!uSvoTex || uSvoTex.image.width !== width) {
+    if (!uSvoTex || uSvoTex.image.width !== width || uSvoTex.image.height !== height) {
         uSvoTex = new THREE.DataTexture(data,width,height,THREE.RGBAFormat,THREE.FloatType);
         uSvoTex.magFilter = uSvoTex.minFilter = THREE.NearestFilter;
         uSvoTex.wrapS = uSvoTex.wrapT = THREE.ClampToEdgeWrapping;

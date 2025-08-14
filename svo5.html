@@ -137,7 +137,7 @@
                 try {
                     const {dense, size, palette} = await parseVOX(await f.arrayBuffer());
                     SVO.ensurePalette(SVO.makePaletteTexture(palette));
-                    SVO.uploadSVO(SVO.buildSVOFromDense(dense, size));
+                    SVO.uploadSVO(SVO.buildSVOFromDense(dense, size, renderer.capabilities.maxTextureSize));
                     stat.textContent = `Loaded ${f.name} : ${size}^3, nodes tex ${SVO.uSvoTex.image.width}x${SVO.uSvoTex.image.height}`;
                 } catch (err) {
                     console.error(err);
