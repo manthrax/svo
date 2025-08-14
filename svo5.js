@@ -219,13 +219,16 @@ export const mat = new THREE.ShaderMaterial({
     precision highp int; 
     precision highp sampler2D;
 
-    uniform float iTime; 
-    uniform vec2 iResolution;
     // NOTE: 
     uniform mat4 modelMatrix;
     //uniform mat4 viewMatrix;
     uniform mat4 projectionMatrix;
     //uniform vec3 cameraPosition;
+    `+`
+    
+    uniform float iTime; 
+    uniform vec2 iResolution;
+    
     uniform sampler2D uSvoTex; 
     uniform uint uRootNode;
     uniform uint uSvoSize; 
@@ -286,7 +289,8 @@ uvec4 fetchU32(uint idx){
           return vec4(shade(palette(child), ro, normal), 1.0);
         } else { inter = rayCubeIntersect(ro, rd_inv, rd_flipped, node.xyz+offset, size/2u, tmin, tmax, normal); ro += rd*(tmax+0.0001); }
       }
-      discard; return vec4(0.0);
+      discard;
+      return vec4(0.0);
     }
 
     void main(){
@@ -295,7 +299,11 @@ uvec4 fetchU32(uint idx){
       float s = float(uSvoSize); vec3 ro = roO*s + vec3(s*0.5); vec3 rd = rdO*s;
       vec4 col = trace(ro, rd);
       // depth
-      vec3 hitO = (ro - vec3(s*0.5))/s; vec4 hitW = modelMatrix*vec4(hitO,1.0); vec4 clip = projectionMatrix*viewMatrix*hitW; float depth01 = (clip.z/clip.w)*0.5+0.5; gl_FragDepth = depth01;
+      vec3 hitO = (ro - vec3(s*0.5))/s; 
+      vec4 hitW = modelMatrix*vec4(hitO,1.0); 
+      vec4 clip = projectionMatrix*viewMatrix*hitW; 
+      float depth01 = (clip.z/clip.w)*0.5+0.5; 
+      gl_FragDepth = depth01;
       fragColor = col;
     }
   `
@@ -329,3 +337,21 @@ export function ensurePalette(tex) {
 }
 
 export {uSvoTex};
+
+let hooks={
+    metalness:null
+}
+
+export function injectShader(s){
+    const fs='fragmentShader'
+    const vs='vertexShader'
+    let replace=(sd,chnk,fn)=>s[sd]=s[sd].replace(`#include <${chnk}>`,fn(`#include <${chnk}>`))
+    
+    replace(vs,'common',(tk)=>tk+`\n varying vec4 vWorldPos;`);
+    replace(fs,'common',(tk)=>tk+`\n`);
+    replace(fs,'map_fragment',(tk)=>tk+`\ndiffuseColor = vec4(1.,0.,0.,0.);`);
+    replace(fs,'roughnessmap_fragment',(tk)=>tk+`\nroughnessFactor = 0.3;`);
+    replace(fs,'metalnessmap_fragment',(tk)=>tk+`\nmetalnessFactor = .9;`);
+    replace(fs,'normal_fragment_begin',(tk)=>tk+`\nnormal *= 1.;`);
+    replace(fs,'clipping_planes_fragment',(tk)=>`\n\n`+tk);
+}
