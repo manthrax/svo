@@ -12,6 +12,11 @@
                 color: #ddd;
                 font: 14px/1.3 system-ui
             }
+            select,option{
+                background: #111;
+                color: #ddd;
+                
+            }
 
             canvas {
                 display: block;
@@ -66,6 +71,7 @@
     </head>
     <body>
         <div class="ui">
+            <select id="fileSelect"></select>
             <input id="file" type="file" accept=".vox"/>
             <label class="stat" id="stat">Load a .vox (MagicaVoxel) file or enjoy the demo sphere.</label>
             <span class="spacer"></span>
@@ -81,7 +87,7 @@
 
             // ----- Renderer / Scene -----
             const renderer = new THREE.WebGLRenderer({
-                antialias: true,
+                //antialias: true,
                 alpha: true
             });
             renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
@@ -105,7 +111,7 @@
             ;*/
 
             const mesh = new THREE.Mesh(geo,SVO.mat);
-            scene.add(mesh);
+            //scene.add(mesh);
 
             // extra object behind to test occlusion
             const light = new THREE.DirectionalLight(0xffffff,1);
@@ -124,29 +130,33 @@
             tmat.onBeforeCompile = SVO.injectShader;
             
             // clones
-            let d=4;
-            for (let i = 1; i < d*d; i++) {
+            let d=1;
+            for (let i = 0; i < d*d; i++) {
                 let x= i%d;
                 let y= (i/d)|0
                 const m = new THREE.Mesh(geo,SVO.mat);
                 m.position.x += x * 1.2;
                 m.position.z += y * 1.2;
                 m.rotation.x = -Math.PI*.5
+                m.rotation.z = -Math.PI
                 scene.add(m);
             }
 
             // ----- UI -----
             const stat = document.getElementById('stat');
             const file = document.getElementById('file');
+            let loadVOXFile = async (f)=>{
+                const {dense, size, palette} = await parseVOX(await f.arrayBuffer());
+                SVO.ensurePalette(SVO.makePaletteTexture(palette));
+                SVO.uploadSVO(SVO.buildSVOFromDense(dense, size, renderer.capabilities.maxTextureSize));
+            }
             file.addEventListener('change', async (e) => {
                 const f = e.target.files[0];
                 if (!f)
                     return;
                 stat.textContent = 'Parsing ' + f.name + '...';
                 try {
-                    const {dense, size, palette} = await parseVOX(await f.arrayBuffer());
-                    SVO.ensurePalette(SVO.makePaletteTexture(palette));
-                    SVO.uploadSVO(SVO.buildSVOFromDense(dense, size, renderer.capabilities.maxTextureSize));
+                    await loadVOXFile(f)
                     stat.textContent = `Loaded ${f.name} : ${size}^3, nodes tex ${SVO.uSvoTex.image.width}x${SVO.uSvoTex.image.height}`;
                 } catch (err) {
                     console.error(err);
@@ -155,9 +165,22 @@
             }
             );
 
+            let voxes = await(await fetch("assets/voxes.txt")).text()
+            voxes.split("\n").forEach(url=>{
+                let opt = document.createElement('option')
+                opt.text=opt.value = url;
+                window.fileSelect.appendChild(opt)
+            })
+            window.fileSelect.onchange=async (e)=>{
+                console.log("loading:",e.target.value)
+                let f = await fetch('./assets/vox/'+e.target.value)
+                loadVOXFile(f);
+            }
+
+            
             const lodpx = document.getElementById('lodpx');
             lodpx.addEventListener('input', () => {
-                mat.uniforms.uLodPx.value = parseFloat(lodpx.value);
+                SVO.mat.uniforms.uLodPx.value = parseFloat(lodpx.value);
             }
             );
 

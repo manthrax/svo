@@ -254,18 +254,35 @@ uvec4 fetchU32(uint idx){
     }
 
     bool rayCubeIntersect(vec3 ro, vec3 rd_inv, vec3 rd_flipped_sign, uvec3 corner, uint size, out float outTmin, out float tmax, out vec3 inNormal){
-      vec3 cubeMin = vec3(corner); vec3 cubeMax = vec3(corner + size);
-      vec3 t0s = (cubeMin - ro) * rd_inv; vec3 t1s = (cubeMax - ro) * rd_inv;
-      vec3 tsmaller = min(t0s,t1s); vec3 tbigger = max(t0s,t1s);
-      float tmin = max(tsmaller.x, max(tsmaller.y, tsmaller.z)); tmax = min(tbigger.x, min(tbigger.y, tbigger.z));
-      bool hit = tmax >= max(tmin, 0.0); outTmin = max(tmin,0.0); inNormal = vec3(equal(vec3(tmin), tsmaller)) * rd_flipped_sign; return hit;
+      vec3 cubeMin = vec3(corner);
+      vec3 cubeMax = vec3(corner + size);
+      vec3 t0s = (cubeMin - ro) * rd_inv; 
+      vec3 t1s = (cubeMax - ro) * rd_inv;
+      vec3 tsmaller = min(t0s,t1s); 
+      vec3 tbigger = max(t0s,t1s);
+      float tmin = max(tsmaller.x, max(tsmaller.y, tsmaller.z)); 
+      tmax = min(tbigger.x, min(tbigger.y, tbigger.z));
+      bool hit = tmax > max(tmin, 0.0);
+      outTmin = max(tmin,0.0); 
+      inNormal = vec3(equal(vec3(tmin), tsmaller)) * rd_flipped_sign; 
+      return hit;
     }
 
-    vec3 shade(vec3 base, vec3 hitPos, vec3 normal){ vec3 L = normalize(vec3(5.0,16.0,7.5)); float diff = max(dot(normal,L),0.0); return base*diff + vec3(0.1); }
+    vec3 shade(vec3 base, vec3 hitPos, vec3 normal){ 
+        vec3 L = normalize(vec3(5.0,16.0,7.5)); 
+        float diff = max(dot(normal,L),0.0); 
+        return base*diff + vec3(0.1); 
+    }
 
     vec4 trace(inout vec3 ro, inout vec3 rd){
-      float tmin, tmax; vec3 normal; vec3 rd_inv = 1.0/rd; vec3 rd_flipped = -sign(rd);
-      uint size = uSvoSize; uvec4 stack[32]; uint stack_len=1u; stack[0]=uvec4(uvec3(0), uRootNode);
+      float tmin, tmax; 
+      vec3 normal; 
+      vec3 rd_inv = 1.0/rd; 
+      vec3 rd_flipped = -sign(rd);
+      uint size = uSvoSize; 
+      uvec4 stack[32]; 
+      uint stack_len=1u; 
+      stack[0]=uvec4(uvec3(0), uRootNode);
       for(int i=0;i<128;i++){
         if(stack_len==0u) break;
         uvec4 node = stack[stack_len-1u];
@@ -282,12 +299,25 @@ uvec4 fetchU32(uint idx){
           if(px < uLodPx){ vec3 n = normalize(-sign(rd)); return vec4(shade(vec3(0.8), ro, n), 1.0); }
         }
         // descend/select child
-        vec3 local = ro - vec3(node.xyz); uint halfSize = size/2u; uvec3 gt = uvec3(greaterThanEqual(local, vec3(halfSize)));
-        uvec3 offset = gt * halfSize; uint childIdx = gt.x + 2u*gt.y + 4u*gt.z; uint child = childOf(node.a, childIdx);
-        if(child >= NUM_RESERVED_NODES){ stack[stack_len]=uvec4(node.xyz+offset, child-NUM_RESERVED_NODES); stack_len+=1u; size/=2u; }
-        else if(child != 0u){ if(tmin==0.0){ inter = rayCubeIntersect(ro, rd_inv, rd_flipped, node.xyz+offset, size/2u, tmin, tmax, normal); }
-          return vec4(shade(palette(child), ro, normal), 1.0);
-        } else { inter = rayCubeIntersect(ro, rd_inv, rd_flipped, node.xyz+offset, size/2u, tmin, tmax, normal); ro += rd*(tmax+0.0001); }
+        vec3 local = ro - vec3(node.xyz); 
+        uint halfSize = size/2u; 
+        uvec3 gt = uvec3(greaterThanEqual(local, vec3(halfSize)));
+        uvec3 offset = gt * halfSize; 
+        uint childIdx = gt.x + 2u*gt.y + 4u*gt.z; 
+        uint child = childOf(node.a, childIdx);
+        if(child >= NUM_RESERVED_NODES){ 
+            stack[stack_len]=uvec4(node.xyz+offset, child-NUM_RESERVED_NODES); 
+            stack_len+=1u; 
+            size/=2u; 
+        }
+        else if(child != 0u){ 
+            if(tmin==0.0){ 
+                inter = rayCubeIntersect(ro, rd_inv, rd_flipped, node.xyz+offset, size/2u, tmin, tmax, normal); 
+            }
+            return vec4(shade(palette(child), ro, normal), 1.0);
+        } else {
+            inter = rayCubeIntersect(ro, rd_inv, rd_flipped, node.xyz+offset, size/2u, tmin, tmax, normal); 
+            ro += rd*(tmax+0.0001); }
       }
       discard;
       return vec4(0.0);
@@ -296,7 +326,9 @@ uvec4 fetchU32(uint idx){
     void main(){
       vec3 rdW = normalize(vWorldPos - cameraPosition);
       mat4 invModel = inverse(modelMatrix); vec3 roO = (invModel*vec4(cameraPosition,1.0)).xyz; vec3 rdO = normalize((invModel*vec4(rdW,0.0)).xyz);
-      float s = float(uSvoSize); vec3 ro = roO*s + vec3(s*0.5); vec3 rd = rdO*s;
+      float s = float(uSvoSize); 
+      vec3 ro = roO*s + vec3(s*0.5);
+      vec3 rd = rdO*s;
       vec4 col = trace(ro, rd);
       // depth
       vec3 hitO = (ro - vec3(s*0.5))/s; 
