@@ -343,13 +343,18 @@ uvec4 fetchU32(uint idx){
 
 // ----- Upload helpers (AFTER material exists) -----
 export function uploadSVO({data, width, height, rootId, svoSize}) {
+
     if (!uSvoTex || uSvoTex.image.width !== width || uSvoTex.image.height !== height) {
         uSvoTex = new THREE.DataTexture(data,width,height,THREE.RGBAFormat,THREE.FloatType);
+
         uSvoTex.magFilter = uSvoTex.minFilter = THREE.NearestFilter;
         uSvoTex.wrapS = uSvoTex.wrapT = THREE.ClampToEdgeWrapping;
         uSvoTex.needsUpdate = true;
         mat.uniforms.uSvoTex.value = uSvoTex;
     } else {
+        if (uSvoTex.image.data.length !== width * height * 4) {
+            uSvoTex.image.data = new Float32Array(width * height * 4);
+        }
         uSvoTex.image.data.set(data);
         uSvoTex.needsUpdate = true;
     }
