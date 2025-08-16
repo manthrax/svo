@@ -75,6 +75,7 @@
         </div>
         <script type="module">
             import *as SVO from "./svo5.js"
+            import * as GV from "./greedyVox.js"
             import*as THREE from 'three';
             import {parseVOX} from "./vox-loader.js"
             import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
@@ -105,7 +106,9 @@
             ;*/
 
             const mesh = new THREE.Mesh(geo,SVO.mat);
+            mesh.position.x = -1.2;
             scene.add(mesh);
+            let gMesh = null;
 
             // extra object behind to test occlusion
             const light = new THREE.DirectionalLight(0xffffff,1);
@@ -124,7 +127,7 @@
             tmat.onBeforeCompile = SVO.injectShader;
             
             // clones
-            let d=4;
+            let d=1;
             for (let i = 1; i < d*d; i++) {
                 let x= i%d;
                 let y= (i/d)|0
@@ -145,8 +148,15 @@
                 stat.textContent = 'Parsing ' + f.name + '...';
                 try {
                     const {dense, size, palette} = await parseVOX(await f.arrayBuffer());
-                    SVO.ensurePalette(SVO.makePaletteTexture(palette));
+                    const palTex = SVO.makePaletteTexture(palette);
+                    SVO.ensurePalette(palTex);
+                    GV.ensurePalette(palTex);
                     SVO.uploadSVO(SVO.buildSVOFromDense(dense, size, renderer.capabilities.maxTextureSize));
+                    GV.uploadVoxels(dense, size);
+                    if (gMesh) scene.remove(gMesh);
+                    gMesh = GV.makeMesh(dense, size);
+                    gMesh.position.x = 1.2;
+                    scene.add(gMesh);
                     stat.textContent = `Loaded ${f.name} : ${size}^3, nodes tex ${SVO.uSvoTex.image.width}x${SVO.uSvoTex.image.height}`;
                 } catch (err) {
                     console.error(err);
