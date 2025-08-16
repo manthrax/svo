@@ -104,7 +104,13 @@ function injectShader(s) {
   const rep = (sd, chunk, fn) => {
     s[sd] = s[sd].replace(`#include <${chunk}>`, fn(`#include <${chunk}>`));
   };
-  rep(vs, 'common', (t) => t + `\nattribute vec3 aOrigin;\nattribute vec3 aSize;\nuniform float uVoxSize;\nvarying vec3 vVoxCoord;\nvarying vec3 vNormal;`);
+  rep(vs, 'common', (t) => t + `
+  attribute vec3 aOrigin;
+  attribute vec3 aSize;
+  uniform float uVoxSize;
+  varying vec3 vVoxCoord;
+  //varying vec3 vNormal;
+  `);
   rep(vs, 'beginnormal_vertex', () => 'vec3 objectNormal = vNormal;');
   rep(vs, 'begin_vertex', () => `
     vec3 origin = aOrigin;
@@ -143,7 +149,7 @@ let uVoxTex = null;
 let uPaletteTex = null;
 export function uploadVoxels(bytes, size) {
   if (!uVoxTex || uVoxTex.image.width !== size) {
-    uVoxTex = new THREE.DataTexture3D(bytes, size, size, size);
+    uVoxTex = new THREE.Data3DTexture(bytes, size, size, size);
     uVoxTex.format = THREE.RedFormat;
     uVoxTex.type = THREE.UnsignedByteType;
     uVoxTex.minFilter = uVoxTex.magFilter = THREE.NearestFilter;
