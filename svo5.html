@@ -120,6 +120,8 @@
             const light = new THREE.DirectionalLight(0xffffff,1);
             light.position.set(3, 3, 5);
             scene.add(light);
+            let ambi = new THREE.AmbientLight();
+            scene.add(ambi)
             const ball = new THREE.Mesh(new THREE.SphereGeometry(.5,32,16),new THREE.MeshStandardMaterial({
                 color: 0x88aaff
             }));
@@ -158,7 +160,9 @@
                 GV.uploadVoxels(dense, size);
                 if (gMesh) scene.remove(gMesh);
                 gMesh = GV.makeMesh(dense, size);
-                gMesh.position.x = 1.2;
+                gMesh.rotation.x = -Math.PI*.5
+                gMesh.position.x = .0;
+                gMesh.position.z = .0;
                 scene.add(gMesh);
             }
             file.addEventListener('change', async (e) => {
@@ -184,10 +188,10 @@
             })
             window.fileSelect.onchange=async (e)=>{
                 console.log("loading:",e.target.value)
-                let f = await fetch('./assets/vox/'+e.target.value)
-                loadVOXFile(f);
+                loadVOXFile(await fetch('./assets/vox/'+e.target.value));
             }
 
+            loadVOXFile(await fetch('./assets/vox/monu10.vox'));
             
             const lodpx = document.getElementById('lodpx');
             lodpx.addEventListener('input', () => {
