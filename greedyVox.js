@@ -2,8 +2,9 @@
 import * as THREE from 'three';
 import { makePaletteTexture } from './svo5.js';
 
-// --- Greedy mesh builder (dense -> instanced quads) ---
-export function buildGreedyFromDense(voxels, size) {
+// --- Greedy mesh builder (dense -> instanced quads)
+// set ignoreMaterials to true to merge faces across different voxel IDs
+export function buildGreedyFromDense(voxels, size, ignoreMaterials = false) {
   const dims = [size, size, size];
   const quads = [];
   const mask = new Int32Array(size * size);
@@ -22,7 +23,9 @@ export function buildGreedyFromDense(voxels, size) {
         for (x[u] = 0; x[u] < dims[u]; ++x[u], ++n) {
           const a = (x[d] >= 0) ? voxels[index(x[0], x[1], x[2])] : 0;
           const b = (x[d] < dims[d] - 1) ? voxels[index(x[0] + q[0], x[1] + q[1], x[2] + q[2])] : 0;
-          mask[n] = (a && b && a === b) ? 0 : (a ? a : (b ? -b : 0));
+          const av = ignoreMaterials ? (a ? 1 : 0) : a;
+          const bv = ignoreMaterials ? (b ? 1 : 0) : b;
+          mask[n] = (av && bv && av === bv) ? 0 : (av ? av : (bv ? -bv : 0));
         }
       }
 
@@ -126,20 +129,28 @@ function injectShader(s) {
     vec2 p      = uv; // 0..1 across quad
 
     vec3 pos;
-    vec3 sgn = step(0.,sign(aSize))-1.;
     if (abs(aSize.x) < 0.75) {       // thickness along X → plane is YZ
-      pos = origin + vec3( sgn.x,  p.x*size.y,  p.y*size.z );
-      n *= sgn.y;
+      if (aSize.x > 0.) {
+        pos = origin + vec3(0., p.x*size.y, p.y*size.z);
+      } else {
+        pos = origin + vec3(-1., (1.0-p.x)*size.y, p.y*size.z);
+      }
     } else if (abs(aSize.y) < 0.75) { // thickness along Y → plane is XZ
-      pos = origin + vec3(  p.x*size.x, sgn.y ,  p.y*size.z );
-      n *= sgn.z;
+      if (aSize.y > 0.) {
+        pos = origin + vec3(p.x*size.x, 0., p.y*size.z);
+      } else {
+        pos = origin + vec3(p.x*size.x, -1., (1.0-p.y)*size.z);
+      }
     } else {                          // thickness along Z → plane is XY
-      pos = origin + vec3(  p.x*size.x,  p.y*size.y, sgn.z );
-      n *= sgn.x;
+      if (aSize.z > 0.) {
+        pos = origin + vec3(p.x*size.x, p.y*size.y, 0.);
+      } else {
+        pos = origin + vec3((1.0-p.x)*size.x, p.y*size.y, -1.);
+      }
     }
     vVoxCoord = pos;
     vFacetNrm = n;
-    
+
     vec3 transformed = (pos*vec3(-1.,-1.,1.)) / uVoxSize - 0.5;
   `);
 
@@ -198,8 +209,8 @@ export function ensurePalette(tex) {
 }
 
 // --- Mesh creation ---
-export function makeMesh(voxels, size) {
-  const { origins, sizes, count } = buildGreedyFromDense(voxels, size);
+export function makeMesh(voxels, size, ignoreMaterials = false) {
+  const { origins, sizes, count } = buildGreedyFromDense(voxels, size, ignoreMaterials);
   const base = new THREE.PlaneGeometry(1, 1); // has uv 0..1
   const geo = new THREE.InstancedBufferGeometry().copy(base);
   geo.instanceCount = count;
