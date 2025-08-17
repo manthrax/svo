@@ -120,7 +120,7 @@
             const light = new THREE.DirectionalLight(0xffffff,1);
             light.position.set(3, 3, 5);
             scene.add(light);
-            let ambi = new THREE.AmbientLight();
+            let ambi = new THREE.AmbientLight('red',.1);
             scene.add(ambi)
             const ball = new THREE.Mesh(new THREE.SphereGeometry(.5,32,16),new THREE.MeshStandardMaterial({
                 color: 0x88aaff

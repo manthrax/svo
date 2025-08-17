@@ -82,12 +82,12 @@ const uniforms = {
 };
 
 export const mat = new THREE.MeshStandardMaterial({
-  side: THREE.DoubleSide, 
-  metalness: 0, 
-  roughness: 1,
-  //wireframe:true,
-  opacity:.5,
-  transparent:true,
+  //side: THREE.DoubleSide, 
+  metalness: 0.0, 
+  roughness: 1.,
+  wireframe:false,
+  //opacity:.5,
+  //transparent:true,
 });
 mat.onBeforeCompile = injectShader;
 
@@ -126,20 +126,20 @@ function injectShader(s) {
     vec2 p      = uv; // 0..1 across quad
 
     vec3 pos;
+    vec3 sgn = step(0.,sign(aSize))-1.;
     if (abs(aSize.x) < 0.75) {       // thickness along X → plane is YZ
-      float s = sign(aSize.x);
-      pos = origin + vec3( (s>0.) ? 0.5 : 0.0,  p.x*size.y,  p.y*size.z );
+      pos = origin + vec3( sgn.x,  p.x*size.y,  p.y*size.z );
+      n *= sgn.y;
     } else if (abs(aSize.y) < 0.75) { // thickness along Y → plane is XZ
-      float s = sign(aSize.y);
-      pos = origin + vec3(  p.x*size.x, (s>0.) ? 0.5 : 0.0,  p.y*size.z );
+      pos = origin + vec3(  p.x*size.x, sgn.y ,  p.y*size.z );
+      n *= sgn.z;
     } else {                          // thickness along Z → plane is XY
-      float s = sign(aSize.z);
-      pos = origin + vec3(  p.x*size.x,  p.y*size.y, (s>0.) ? 0.5 : 0.0 );
+      pos = origin + vec3(  p.x*size.x,  p.y*size.y, sgn.z );
+      n *= sgn.x;
     }
-
     vVoxCoord = pos;
     vFacetNrm = n;
-
+    
     vec3 transformed = (pos*vec3(-1.,-1.,1.)) / uVoxSize - 0.5;
   `);
 
@@ -205,5 +205,11 @@ export function makeMesh(voxels, size) {
   geo.instanceCount = count;
   geo.setAttribute('aOrigin', new THREE.InstancedBufferAttribute(origins, 3).setUsage(THREE.StaticDrawUsage));
   geo.setAttribute('aSize',   new THREE.InstancedBufferAttribute(sizes,   3).setUsage(THREE.StaticDrawUsage));
+  
+  let bb = geo.boundingBox = new THREE.Box3();
+  bb.setFromBufferAttribute(geo.getAttribute('aOrigin'));
+  let bs = geo.boundingSphere = new THREE.Sphere();
+  bs.radius = bb.getSize(bs.center).length();
+  bb.getCenter(bs.center);
   return new THREE.Mesh(geo, mat);
 }
